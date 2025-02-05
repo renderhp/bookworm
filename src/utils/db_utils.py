@@ -3,7 +3,12 @@ import sqlite3
 from prompt_toolkit import prompt
 from rich import print
 
-from constants import DB_PATH
+from constants import (
+    DB_APP_SETTINGS_TABLE,
+    DB_BOOKS_TABLE,
+    DB_PATH,
+    DB_SNIPPETS_TABLE,
+)
 
 
 def create_db(*args):
@@ -25,8 +30,8 @@ def create_db(*args):
         cursor = conn.cursor()
 
         cursor.execute(
-            """
-                CREATE TABLE IF NOT EXISTS books (
+            f"""
+                CREATE TABLE IF NOT EXISTS {DB_BOOKS_TABLE} (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL
                 )
@@ -34,8 +39,8 @@ def create_db(*args):
         )
 
         cursor.execute(
-            """
-                CREATE TABLE IF NOT EXISTS snippets (
+            f"""
+                CREATE TABLE IF NOT EXISTS {DB_SNIPPETS_TABLE} (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     book_id INTEGER,
                     snippet TEXT,
@@ -47,8 +52,8 @@ def create_db(*args):
         )
 
         cursor.execute(
-            """
-                CREATE TABLE IF NOT EXISTS app_settings (
+            f"""
+                CREATE TABLE IF NOT EXISTS {DB_APP_SETTINGS_TABLE} (
                     key TEXT PRIMARY KEY, 
                     value TEXT
                 )
@@ -71,6 +76,8 @@ def create_db(*args):
 def set_setting(key: str, value: str):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO app_settings VALUES (?, ?)", (key, value))
+    c.execute(
+        f"INSERT OR REPLACE INTO {DB_APP_SETTINGS_TABLE} VALUES (?, ?)", (key, value)
+    )
     conn.commit()
     conn.close()
