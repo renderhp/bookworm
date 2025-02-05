@@ -4,6 +4,7 @@ from prompt_toolkit import PromptSession
 
 from commands.command_registry import CommandRegistry
 from commands.setup import Setup
+from commands.ask import Ask
 
 
 class CLI:
@@ -13,6 +14,7 @@ class CLI:
     def setup_commands(self) -> None:
         self.command_registry = CommandRegistry()
         self.command_registry.register_command("setup", Setup)
+        self.command_registry.register_command("ask", Ask)
 
     def run(self):
         session = PromptSession()

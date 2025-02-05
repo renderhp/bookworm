@@ -81,3 +81,15 @@ def set_setting(key: str, value: str):
     )
     conn.commit()
     conn.close()
+
+
+def get_setting(key: str) -> str | None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(f"SELECT value FROM {DB_APP_SETTINGS_TABLE} WHERE key = ?", (key,))
+    result = c.fetchone()
+    conn.close()
+    if result:
+        return result[0]
+    else:
+        return None
