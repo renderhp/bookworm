@@ -32,6 +32,7 @@ def init_db():
                 book_id INTEGER NOT NULL,
                 chapter_number INTEGER NOT NULL,
                 content TEXT NOT NULL,
+                summary TEXT,
                 embedding BLOB,
                 FOREIGN KEY (book_id) REFERENCES books(id)
             )
@@ -45,12 +46,12 @@ def insert_book(title, author, file_path):
         conn.commit()
         return cursor.lastrowid
 
-def insert_chapter(book_id, chapter_number, content, embedding=None):
+def insert_chapter(book_id, chapter_number, content, embedding=None, summary=None):
     with connect_db() as conn:
         cursor = conn.cursor()
         # Convert embedding list to JSON string and then to bytes
         embedding_data = json.dumps(embedding).encode('utf-8') if embedding is not None else None
-        cursor.execute("INSERT INTO chapters (book_id, chapter_number, content, embedding) VALUES (?, ?, ?, ?)", (book_id, chapter_number, content, embedding_data))
+        cursor.execute("INSERT INTO chapters (book_id, chapter_number, content, embedding, summary) VALUES (?, ?, ?, ?, ?)", (book_id, chapter_number, content, embedding_data, summary))
         conn.commit()
 
 def set_api_key(api_key):
@@ -69,16 +70,24 @@ def get_api_key():
 def get_chapters_for_book(book_id):
     with connect_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT chapter_number, content, embedding FROM chapters WHERE book_id = ? ORDER BY chapter_number", (book_id,))
+        cursor.execute("SELECT chapter_number, content, embedding, summary FROM chapters WHERE book_id = ? ORDER BY chapter_number", (book_id,))
         rows = cursor.fetchall()
         # Decode embedding from BLOB to list
-        return [(row[0], row[1], json.loads(row[2].decode('utf-8')) if row[2] else None) for row in rows]
+        return [(row[0], row[1], json.loads(row[2].decode('utf-8')) if row[2] else None, row[3]) for row in rows]
 
 def get_book_by_title(title):
     with connect_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id, title, author, file_path FROM books WHERE title = ?", (title,))
         return cursor.fetchone()
+
+def purge_data():
+    with connect_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM chapters")
+        cursor.execute("DELETE FROM books")
+        conn.commit()
+        print("All book and chapter data purged from the database.")
 
 if __name__ == "__main__":
     init_db()
