@@ -90,7 +90,7 @@ def ask_question(args):
             question_embedding = np.array(question_embedding_response["embedding"])
 
             chapter_similarities = []
-            for chapter_number, content, embedding in chapters:
+            for chapter_number, content, embedding, summary in chapters:
                 if embedding:
                     chapter_embedding = np.array(embedding)
                     similarity = np.dot(question_embedding, chapter_embedding) / (
