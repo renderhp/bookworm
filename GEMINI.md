@@ -24,4 +24,4 @@ When a user asks a question about a specific book, `bookworm` uses a Retrieval-A
 
 ### LLM Integration
 
-`bookworm` is designed to be flexible with different LLMs. Users can configure the application by providing API keys for the LLM they wish to use. The application will then use these credentials to query the specified LLM.
+`bookworm` uses Gemini models for asking questions and embedding chapters.
