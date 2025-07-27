@@ -24,4 +24,4 @@ When a user asks a question about a specific book, `bookworm` uses a Retrieval-A
 
 ### LLM Integration
 
-`bookworm` uses Gemini models for asking questions and embedding chapters.
+`bookworm` uses Gemini models for asking questions and embedding text.
