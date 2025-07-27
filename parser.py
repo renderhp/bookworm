@@ -3,7 +3,7 @@ import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
 
-def extract_chapters_from_epub(epub_path, output_dir=".", book_id=None, insert_chapter_func=None):
+def extract_chapters_from_epub(epub_path, output_dir=".", book_id=None, insert_chapter_func=None, genai_model=None, embedding_model_name=None, chapter_limit=None):
     """
     Extracts chapters from an EPUB file and saves them as plain text files or inserts them into a database.
 
@@ -16,7 +16,9 @@ def extract_chapters_from_epub(epub_path, output_dir=".", book_id=None, insert_c
     os.makedirs(output_dir, exist_ok=True)
     book = epub.read_epub(epub_path)
     chapters = []
-    for item in book.get_items():
+    for i, item in enumerate(book.get_items()):
+        if chapter_limit and i >= chapter_limit:
+            break
         if item.get_type() == ebooklib.ITEM_DOCUMENT:
             soup = BeautifulSoup(item.content, 'html.parser')
             text = soup.get_text()
@@ -28,7 +30,14 @@ def extract_chapters_from_epub(epub_path, output_dir=".", book_id=None, insert_c
 
     if insert_chapter_func and book_id is not None:
         for i, (file_name, content) in enumerate(chapters):
-            insert_chapter_func(book_id, i + 1, content)
+            embedding = None
+            if genai_model and embedding_model_name:
+                try:
+                    response = genai_model.embed_content(model=embedding_model_name, content=content)
+                    embedding = response['embedding']
+                except Exception as e:
+                    print(f"Error generating embedding for chapter {i+1}: {e}")
+            insert_chapter_func(book_id, i + 1, content, embedding)
             print(f"Inserted chapter {i+1} into DB.")
     else:
         # Save chapters to files (this part can be refined later)

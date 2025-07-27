@@ -1,4 +1,5 @@
 import sqlite3
+import json
 
 DATABASE_NAME = "bookworm.db"
 
@@ -31,6 +32,7 @@ def init_db():
                 book_id INTEGER NOT NULL,
                 chapter_number INTEGER NOT NULL,
                 content TEXT NOT NULL,
+                embedding BLOB,
                 FOREIGN KEY (book_id) REFERENCES books(id)
             )
         """)
@@ -43,10 +45,12 @@ def insert_book(title, author, file_path):
         conn.commit()
         return cursor.lastrowid
 
-def insert_chapter(book_id, chapter_number, content):
+def insert_chapter(book_id, chapter_number, content, embedding=None):
     with connect_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO chapters (book_id, chapter_number, content) VALUES (?, ?, ?)", (book_id, chapter_number, content))
+        # Convert embedding list to JSON string and then to bytes
+        embedding_data = json.dumps(embedding).encode('utf-8') if embedding is not None else None
+        cursor.execute("INSERT INTO chapters (book_id, chapter_number, content, embedding) VALUES (?, ?, ?, ?)", (book_id, chapter_number, content, embedding_data))
         conn.commit()
 
 def set_api_key(api_key):
@@ -65,8 +69,10 @@ def get_api_key():
 def get_chapters_for_book(book_id):
     with connect_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT chapter_number, content FROM chapters WHERE book_id = ? ORDER BY chapter_number", (book_id,))
-        return cursor.fetchall()
+        cursor.execute("SELECT chapter_number, content, embedding FROM chapters WHERE book_id = ? ORDER BY chapter_number", (book_id,))
+        rows = cursor.fetchall()
+        # Decode embedding from BLOB to list
+        return [(row[0], row[1], json.loads(row[2].decode('utf-8')) if row[2] else None) for row in rows]
 
 def get_book_by_title(title):
     with connect_db() as conn:

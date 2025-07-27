@@ -1,5 +1,7 @@
 
 import argparse
+import google.generativeai as genai
+import numpy as np
 
 from parser import extract_chapters_from_epub
 from database import init_db, set_api_key, get_api_key, insert_book, insert_chapter, get_book_by_title, get_chapters_for_book
@@ -7,6 +9,11 @@ from ebooklib import epub
 
 def parse_book(args):
     """Parses a book and stores its content."""
+    api_key = get_api_key()
+    if not api_key:
+        print("API key not configured. Please run 'configure' command first.")
+        return
+
     print(f"Parsing book: {args.path}")
     try:
         book = epub.read_epub(args.path)
@@ -17,23 +24,57 @@ def parse_book(args):
         title = 'Unknown Title'
         author = 'Unknown Author'
 
+    genai.configure(api_key=api_key)
+
     book_id = insert_book(title, author, args.path)
     if book_id:
         print(f"Book '{title}' by {author} added to DB with ID: {book_id}")
-        extract_chapters_from_epub(args.path, args.output_dir, book_id=book_id, insert_chapter_func=insert_chapter)
+        extract_chapters_from_epub(args.path, args.output_dir, book_id=book_id, insert_chapter_func=insert_chapter, genai_model=genai, embedding_model_name="gemini-embedding-001", chapter_limit=5)
     else:
         print(f"Failed to add book {args.path} to the database. It might already exist.")
 
+import google.generativeai as genai
+
 def ask_question(args):
     """Asks a question about a book."""
+    api_key = get_api_key()
+    if not api_key:
+        print("API key not configured. Please run 'configure' command first.")
+        return
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    embedding_model = genai.GenerativeModel('gemini-embedding-001')
+
     book_info = get_book_by_title(args.book_title)
     if book_info:
         book_id, title, author, file_path = book_info
         print(f"Asking about book: {title} by {author}")
         chapters = get_chapters_for_book(book_id)
         if chapters:
-            print(f"Found {len(chapters)} chapters for {title}. LLM integration not yet implemented.")
-            # TODO: Implement LLM integration here
+            # Embed the user's question
+            question_embedding_response = genai.embed_content(model='gemini-embedding-001', content=args.question)
+            question_embedding = np.array(question_embedding_response['embedding'])
+
+            # Calculate similarity and find top 2 chapters
+            chapter_similarities = []
+            for chapter_number, content, embedding in chapters:
+                if embedding:
+                    chapter_embedding = np.array(embedding)
+                    similarity = np.dot(question_embedding, chapter_embedding) / (np.linalg.norm(question_embedding) * np.linalg.norm(chapter_embedding))
+                    chapter_similarities.append((similarity, content))
+
+            chapter_similarities.sort(key=lambda x: x[0], reverse=True)
+            top_chapters = [content for similarity, content in chapter_similarities[:2]]
+
+            context = "\n\n".join(top_chapters)
+            prompt = f"Given the following context from the book \"{title}\" by {author}:\n\n{context}\n\nAnswer the following question: {args.question}"
+            try:
+                response = model.generate_content(prompt)
+                print("\nAnswer:")
+                print(response.text)
+            except Exception as e:
+                print(f"Error generating response from LLM: {e}")
         else:
             print(f"No chapters found for {title}.")
     else:
